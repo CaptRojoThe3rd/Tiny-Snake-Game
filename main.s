@@ -168,18 +168,23 @@ NMI:
 	sta ControllerInputs
 
 	; Update pause flag
-	and Button_Start
+	lda ControllerInputs
+	tax
+	beq :++
+	lda GamePaused
+	bmi :+++
+	txa
+	and #$ef
 	beq :+
 	lda #$80
 	sta GamePaused
 	:
-	lda ControllerInputs
+	txa
 	and Button_Start
-	beq :+
+	beq :++
 	lda GamePaused
-	bmi :++
 	ora #$80
-	eor #$1
+	eor #$01
 	sta GamePaused
 	bne :++
 	:
@@ -229,6 +234,7 @@ NMI:
 
 	; Frame counter
 	lda GamePaused
+	and #$7f
 	bne :+
 	dec FrameCounter
 	:

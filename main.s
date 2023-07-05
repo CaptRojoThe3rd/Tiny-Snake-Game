@@ -168,10 +168,12 @@ NMI:
 	sta ControllerInputs
 
 	; Update pause flag
+	and Button_Start
 	beq :+
 	lda #$80
 	sta GamePaused
 	:
+	lda ControllerInputs
 	and Button_Start
 	beq :+
 	lda GamePaused

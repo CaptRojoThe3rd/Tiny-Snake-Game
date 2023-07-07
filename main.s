@@ -71,7 +71,7 @@ Reset:
 	txa
 	ldy #$3f
 	:
-		sta $802,x ; Don't use zeropage addressing so page boundary will be crossed rather than accessing $00-$01
+		sta $810,x ; Don't use zeropage addressing so page boundary will be crossed rather than accessing RNG data and so $100-$10f is cleared
 		; $200-$3ff unused
 		sta $400,x
 		sta $500,x
@@ -86,17 +86,17 @@ Reset:
 	sta PpuAddr_2006
 	:
 		lda	CHR,x
-		sta $100,x
+		sta $110,x
 		inx
 		bne :-
-	ldy #$0f
+	ldy #$10
 	:
 		lda $100,x
 		sta PpuData_2007
 		inx
 		bne :-
 		dey
-		bpl :-
+		bne :-
 	lda #$3f
 	sta PpuAddr_2006
 	stx PpuAddr_2006
@@ -106,12 +106,12 @@ Reset:
 		inx
 		cpx #4
 		bne :-
+	stx BlacklistedInputs
 	stx FrameCounter
-	lda #%10000000
+	ror
 	sta PpuControl_2000
 	lda #%00001010
 	sta PpuMask_2001
-	iny
 	
 	:
 		bit PpuStatus_2002
@@ -141,8 +141,6 @@ Reset:
 	inc GamePaused
 
 	inc SnakeDirection
-	lda DPad_Down
-	sta BlacklistedInputs
 
 	jsr CreateApple
 

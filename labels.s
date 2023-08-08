@@ -49,26 +49,28 @@ Ctrl2_FrameCtr_4017			= $4017
 ; NES RAM
 
 RNGData						= $00 ; 2 bytes
-ControllerInputs			= $10
+ControllerInputs			= $80
 
-ApplePos					= $11 ; 2 bytes
-SnakeHeadPos				= $13 ; 2 bytes
-SnakeTailPos				= $15 ; 2 bytes
+ApplePos					= $81 ; 2 bytes
+SnakeHeadPos				= $83 ; 2 bytes
+SnakeTailPos				= $85 ; 2 bytes
 
-IncrementTailLength			= $17
-EnableMovement				= $18
-SnakeDirection				= $19
+IncrementTailLength			= $87
+EnableMovement				= $88
+SnakeDirection				= $89
 
-FrameCounter				= $1a
+LastSnakeHeadPos			= $8b ; 2 bytes
+LastSnakeTailPos			= $8d ; 2 bytes
 
-LastSnakeHeadPos			= $1b ; 2 bytes
-LastSnakeTailPos			= $1d ; 2 bytes
+BlacklistedInputs			= $8f
 
-BlacklistedInputs			= $1f
+AllowPauseViaStartButton	= $91
 
-GamePaused					= $20
-
-Temp_SnakeTailDirection		= $21
+Temp_SnakeTailDirection		= $92
 
 ScreenData					= $400 ; 1024 bytes
 
+
+
+FrameCounter				= $08 ; PHP
+GamePaused					= $40 ; RTI

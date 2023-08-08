@@ -6,26 +6,23 @@
 	.byte $22
 .endmacro
 
+.macro lxa0
+	; LXA is predictable/stable when operand is zero
+	.byte $ab, 0
+.endmacro
+
 CHR:
 	.incbin "chr/chr.chr"
 
 Palette:
-	.byte $0f, $16, $1a, $30
+	.byte $0f, $16, $1a 
+	; Last color in CreateApple code
 
-GameOver:
-	lda #$3f
-	sta PpuAddr_2006
-	lda #$03
-	sta PpuAddr_2006
-	lda #$16
-	sta PpuData_2007
-	lda #$20
-	sta PpuAddr_2006
-	sty PpuAddr_2006
-	stp
 
 CreateApple:
-	ldy #8
+	.byte $a0 ; LDY # and palette color
+	.byte 8 ; value to load Y with
+
 	lda RNGData
 	:
 		asl
@@ -63,33 +60,33 @@ CreateApple:
 Reset:
 	sei
 	cld
-	ldx #0
+	lxa0
+	tay
 	stx PpuControl_2000
+	stx PpuAddr_2006
+	stx PpuAddr_2006
 	stx PpuMask_2001
-	stx PpuAddr_2006
-	stx PpuAddr_2006
-	txa
-	ldy #$3f
-	:
-		sta $810,x ; Don't use zeropage addressing so page boundary will be crossed rather than accessing RNG data and so $100-$10f is cleared
+	ClearRAMLoop:
+		; Don't use zeropage addressing so page boundary will be crossed rather than accessing RNG data and so $100-$10f is cleared
+		sta $810,x
+		lda CHR,x
+		sta $110,x
+		lda #0
 		; $200-$3ff unused
 		sta $400,x
 		sta $500,x
 		sta $600,x
 		sta $6c0,x ; Don't clear $7c0-$7ff so snake will run into edge of screen
+		:
 		sta PpuData_2007
 		inx
-		bne :-
-		dey
+		bne ClearRAMLoop
+		iny
 		bpl :-
 	sta PpuAddr_2006
 	sta PpuAddr_2006
-	:
-		lda	CHR,x
-		sta $110,x
-		inx
-		bne :-
 	ldy #$10
+	sty GamePaused
 	:
 		lda $100,x
 		sta PpuData_2007
@@ -138,14 +135,16 @@ Reset:
 	sta PpuData_2007
 	sta $5cf
 
-	inc GamePaused
-
 	inc SnakeDirection
 
 	jsr CreateApple
 
+	jsr AfterPauseCode-1
+
 Main:
-	jmp Main
+	nop
+	nop
+	bvc Main
 
 NMI:
 	; Controller reading
@@ -160,47 +159,40 @@ NMI:
 		rol ControllerInputs
 		bcc :-
 
+	bne :+
+	sty AllowPauseViaStartButton
+	:
+
 	lda BlacklistedInputs
 	eor #$ff
 	and ControllerInputs
 	sta ControllerInputs
 
-	; Update pause flag
-	lda ControllerInputs
-	tax
-	beq :++
-	lda GamePaused
-	bmi :+++
-	txa
 	and #$ef
 	beq :+
-	lda #$80
-	sta GamePaused
-	:
-	txa
-	and Button_Start
-	beq :++
-	lda GamePaused
-	ora #$80
-	eor #$01
-	sta GamePaused
-	bne :++
-	:
-	lda GamePaused
-	and #$7f
-	sta GamePaused
+	sty GamePaused
 	:
 
-	; Update snake direction
+	; Update pause flag
+	lda AllowPauseViaStartButton
+	bne :+
 	lda ControllerInputs
-	tax
+	and #$10
+	beq :+
+	inc AllowPauseViaStartButton
+	eor GamePaused
+	sta GamePaused
+	:
+	
+
+	; Update snake direction
+	lax ControllerInputs
 
 	and DPad_Left
 	beq :+
 	lda DPad_Right
 	sta BlacklistedInputs
-	lda #0
-	sta SnakeDirection
+	sty SnakeDirection
 	:
 
 	txa
@@ -230,17 +222,17 @@ NMI:
 	sta SnakeDirection
 	:
 
-	; Frame counter
+	; Frame counter/pause flag
+	@RTI1:
 	lda GamePaused
-	and #$7f
-	bne :+
+	bne @RTI1+1
 	dec FrameCounter
-	:
-	beq :+
-	jmp @2
-	:
+	bne @RTI1+1
 	lda #12
 	sta FrameCounter
+
+	AfterPauseCode:
+
 
 	; Move snake
 	lda SnakeHeadPos
@@ -264,7 +256,7 @@ NMI:
 	sta SnakeHeadPos
 	bcc :++
 	inc SnakeHeadPos+1
-	jmp :++
+	bne :++
 	:
 	lda SnakeHeadPos
 	sec
@@ -290,7 +282,7 @@ NMI:
 	sta SnakeTailPos
 	bcc :++
 	inc SnakeTailPos+1
-	jmp :++
+	bne :++
 	:
 	lda SnakeTailPos
 	sec
@@ -308,8 +300,7 @@ NMI:
 	lda SnakeHeadPos
 	and #$1f
 	cmp #$1f
-	bne :+
-	jmp GameOver
+	beq GameOver
 	:
 	; Right
 	lda LastSnakeHeadPos
@@ -318,8 +309,7 @@ NMI:
 	bne :+
 	lda SnakeHeadPos
 	and #$1f
-	bne :+
-	jmp GameOver
+	beq GameOver
 	:
 	; Don't need to check top or bottom screen wrap, since there will be garbage data there anyway
 
@@ -337,7 +327,17 @@ NMI:
 	cmp #$02
 	bcc :+
 	; Game over
-	jmp GameOver
+	GameOver:
+		lda #$3f
+		sta PpuAddr_2006
+		lda #$03
+		sta PpuAddr_2006
+		lda #$16
+		sta PpuData_2007
+		lda #$20
+		sta PpuAddr_2006
+		sty PpuAddr_2006
+		stp
 	:
 	; Draw snake head
 	; Head
@@ -413,8 +413,6 @@ NMI:
 	sta PpuAddr_2006
 	lda (SnakeTailPos),y
 	sta PpuData_2007
-
-	@2:
 	
 	
 	; Set scroll
